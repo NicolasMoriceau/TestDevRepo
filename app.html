@@ -120,7 +120,7 @@
 		var socket = io.connect();
 		var chatList=new Object(); // List of clients we are talking with
 		
-		// Restrict the pseudo format : no backspace / html
+		// Restrict the pseudo format : no backspace / html / special characters
 		function newPseudo(promptTxt){
 			var pseudo = prompt(promptTxt) || 'User';
 			var reg = '^[a-zA-Z0-9_-ישאטח]+$';
@@ -175,6 +175,7 @@
 				var reader = new FileReader();
 				reader.onload = function(evt){
 					socket.emit('sendImage', {nameS: pseudo,nameR:nameR,img:evt.target.result});
+					$('#'+nameR+'').find('ul').append('<li><strong>'+nameR+' : </strong><div class="thumbnail"><img class="img-responsive" src="'+evt.target.result+'"/></div></li>');
 				};
 				reader.readAsDataURL(data);
 			});
