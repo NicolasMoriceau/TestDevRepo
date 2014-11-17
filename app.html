@@ -175,7 +175,7 @@
 				var reader = new FileReader();
 				reader.onload = function(evt){
 					socket.emit('sendImage', {nameS: pseudo,nameR:nameR,img:evt.target.result});
-					$('#'+nameR+'').find('ul').append('<li><strong>'+nameR+' : </strong><div class="thumbnail"><img class="img-responsive" src="'+evt.target.result+'"/></div></li>');
+					$('#'+nameR+'').find('ul').append('<li><strong>You : </strong><div class="thumbnail"><img class="img-responsive" src="'+evt.target.result+'"/></div></li>');
 				};
 				reader.readAsDataURL(data);
 			});
