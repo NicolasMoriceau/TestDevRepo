@@ -1,0 +1,325 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <title>Socket.IO chat</title>
+		<meta charset="utf-8">
+		<link rel="stylesheet" href="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/css/bootstrap.min.css">
+		<style>
+			li{
+				list-style:none;
+			}
+			.nav-tabs > li {
+					position:relative;    
+			}
+			.nav-tabs > li > a {
+					display:inline-block;
+			}
+			.nav-tabs > li > span {
+					display:none;
+					cursor:pointer;
+					position:absolute;
+					right: 6px;
+					top: 8px;
+					color: red;
+			}
+			.nav-tabs > li:hover > span {
+					display: inline-block;
+			}
+			.btn-file {
+					position: relative;
+					overflow: hidden;
+			}
+			.btn-file input[type=file] {
+					position: absolute;
+					top: 0;
+					right: 0;
+					min-width: 100%;
+					min-height: 100%;
+					font-size: 100px;
+					text-align: right;
+					filter: alpha(opacity=0);
+					opacity: 0;
+					outline: none;
+					background: white;
+					cursor: inherit;
+					display: block;
+			}
+		</style>
+	</head>
+  <body>
+	<div class="container">
+		<div class="row">
+			<div class="col-md-2"></div>	
+			<div class="col-md-8">
+				<!-- Nav bar -->
+				<nav class="navbar navbar-default" role="navigation">
+					<div class="container-fluid">
+						<div class="navbar-header">
+							<button type="button" class="navbar-toggle collapsed" data-toggle="collapse" data-target="#bs-example-navbar-collapse-1">
+								<span class="sr-only">Toggle navigation</span>
+								<span class="icon-bar"></span>
+								<span class="icon-bar"></span>
+								<span class="icon-bar"></span>
+							</button>
+							<a class="navbar-brand" href="#"><div id="accueil"></div></a>
+						</div>
+						<div class="navbar-collapse collapse" id="bs-example-navbar-collapse-1">
+							<ul class="nav navbar-nav navbar-right">
+								<li class="dropdown">
+									<a href="#" class="dropdown-toggle" data-toggle="dropdown" role="button" aria-expanded="false">Online <span class="caret"></span></a>
+									<ul class="dropdown-menu clients" id="clients" role="menu" aria-labelledby="dLabel">
+									</ul>
+								</li>
+							</ul>
+						</div>
+					</div>
+				</nav>	
+				<!-- Main panel -->
+				<div class="panel panel-default" style="display:none">
+					<!-- Names -->
+					<div class="panel-heading">
+						<div id="offPopover" data-toggle="popover" data-html="true" data-placement="top"></div>
+						<ul class="nav nav-tabs" id="chatList"></ul>
+					</div>
+					<!-- Conversations -->
+					<div class="panel-body">
+						<div class="tab-content" id="messages"></div>
+					</div>
+				</div>
+			</div>		
+			<div class="col-md-2"></div>		
+		</div>
+	</div>
+	
+	<!-- Modal block : used to ban clients -->
+	<div class="modal fade bs-example-modal-sm" id="myModal" tabindex="-1" role="dialog" aria-labelledby="myModalLabel" aria-hidden="true">
+		<div class="modal-dialog modal-sm">
+			<div class="modal-content">
+				<div class="modal-header">
+					<button type="button" class="close" data-dismiss="modal"><span aria-hidden="true">&times;</span><span class="sr-only">Close</span></button>
+					<h4 class="modal-title" id="myModalLabel">Who do you want to ban ?</h4>
+				</div>
+				<div class="modal-body">
+					<div class="checkbox">
+						<label id="banlist">					
+						</label>
+					</div>
+					<button id="btn-ban" type="button" class="btn btn-danger">
+						Ban !
+					</button>
+				</div>
+			</div>
+		</div>
+	</div>
+	
+	</body>
+	<script src="/socket.io/socket.io.js"></script>
+	<script src="https://code.jquery.com/jquery-2.1.1.min.js"></script>
+	<script src="https://maxcdn.bootstrapcdn.com/bootstrap/3.3.1/js/bootstrap.min.js"></script>
+	<script>
+		var socket = io.connect();
+		var chatList=new Object(); // List of clients we are talking with
+		
+		// Restrict the pseudo format : no backspace / html
+		function newPseudo(promptTxt){
+			var pseudo = prompt(promptTxt) || 'User';
+			var reg = '^[a-zA-Z0-9_-ישאטח]+$';
+			var bool=pseudo.match(reg)==pseudo;
+			if(pseudo!=$('<p>'+pseudo+'</p>').text() || !bool){
+				pseudo = newPseudo('Only alphanumeric characters, - and _ allowed !! Choose a different name :');
+			}
+			return pseudo;
+		}
+		
+		var pseudo = newPseudo('Choose a name :');
+	
+	
+	$(document).ready(function(){
+		// Init popover
+		$('[data-toggle="popover"]').popover();
+
+		// Create a conversation with 'name' and add a message
+		function newConv(name,message){
+			// Create the heading of the new conversation
+			$('#chatList').append('<li id="'+name+'.head"><a href="#'+name+'" data-toggle="tab">'+name+'&nbsp&nbsp</a><span class="glyphicon glyphicon-remove"></span></li>');
+			// Create the messenger part : text zone / 'Send' button / 'Send image' button
+			if(message!=''){
+				$('#messages').append('<div id="'+name+'" class="tab-pane fade"><div class="convers" style="height:400px; overflow-y: scroll;"><ul id="'+name+'.body"><li style="color:grey"><p><strong>'+name+' : </strong>'+message+'</p></li></ul></div><div class="well"><input class="input col-xs-7" type="text" placeholder="Message..."></input><button type="button" class="send btn btn-success col-xs-offset-1">Send</button><span id="'+name+'.span" class="btn btn-info btn-file">Send image<input id="'+name+'.imagefile" type="file"></span></div></div>');	
+			}else{
+				$('#messages').append('<div id="'+name+'" class="tab-pane fade"><div class="convers" style="height:400px; overflow-y: scroll;"><ul id="'+name+'.body"></ul></div><div class="well"><input class="input col-xs-7" type="text" placeholder="Message..."></input><button type="button" class="send btn btn-success col-xs-offset-1">Send</button><span id="'+name+'.span" class="btn btn-info btn-file">Send image<input id="'+name+'.imagefile" type="file"></span></div></div>');					
+			}
+			// Go to the bottom of the conversation
+			$('.convers').scrollTop($('.convers')[0].scrollHeight);
+			// Active the conversation
+			$('#chatList a[href="#'+name+'"]').tab('show');
+
+			// Handle the 'Send' button click
+			$('.send').on('click',function(){
+				// Get the typed text
+				var msg=$(this).parent().find('input').val();
+				if(msg!='' && $('<p>'+msg+'</p>').text()==msg){
+					$(this).parent().find('input').val('');
+					var nameR=$(this).closest('.tab-pane').attr('id');	
+					// Add the message in his own page
+					$('#'+nameR+'').find('ul').append('<li><p><strong>You : </strong>'+msg+'</p></li>');
+					$('.convers').scrollTop($('.convers')[0].scrollHeight);
+					// Send the message
+					socket.emit('sendMessage',{nameS: pseudo,nameR:nameR,message:msg});
+				}
+			});
+
+			// Handle the 'Send image' button
+			$('.btn-file').bind('change', function(e){
+				var data = e.originalEvent.target.files[0];
+				var nameR=$(this).closest('span').parents('.tab-pane').attr('id');
+				var reader = new FileReader();
+				reader.onload = function(evt){
+					socket.emit('sendImage', {nameS: pseudo,nameR:nameR,img:evt.target.result});
+				};
+				reader.readAsDataURL(data);
+			});
+
+			// Allow to press 'enter' to send a message
+			$('.input').on('keypress',function (e) {
+				if (e.which == 13) {
+					$('.send').click();
+					return false;  
+				}
+			});	
+		};
+		
+		// Return size of a javascript object (chatList for ex)
+		Object.size = function(obj) {
+			var size = 0, key;
+			for (key in obj) {
+					if (obj.hasOwnProperty(key)) size++;
+			}
+			return size;
+		};
+	
+		// Notify connection - Send pseudo through 'newClient' event
+		socket.on('connect',function(){
+			socket.emit('newClient',pseudo);
+		});
+		
+		// Inform that pseudo is already used - Send a new one
+		socket.on('badName',function(name){
+			pseudo = prompt('Choose a different name !') || 'User';
+			socket.emit('newClient',pseudo);
+		});
+		
+		// Inform that admin rights are available (add the "Ban" option)
+		socket.on('adminRight',function(){
+			$('ul.navbar-right').prepend('<li><a href="#" id="ban" role="button" data-toggle="modal" data-target="#myModal">Ban</a></li>');
+		});
+		
+		// Notify that the list of clients has changed - Send the new one
+		socket.on('upClientList',function(clientList){
+			$('#accueil').html('Hello '+pseudo);
+			$('#banlist').empty();
+			$('#clients').empty();
+			// Add the names of connected clients in the 'Online' list and in the 'Ban modal'
+			$.each(clientList, function(key, value) {
+				if(pseudo!=key){
+					$('#banlist').append('<input class="checkbox" type="checkbox" value="'+key+'">'+key+'</input></br>'); 
+					$('#clients').append('<li class="elemlist"><a href="#">' + key + '</a></li>');
+				}
+			});
+			// Ban the checked clients
+			$('#btn-ban').on('click',function(){
+				$('.modal').modal('toggle');
+				$('.checkbox').each(function(){
+					if($(this).is(':checked')){
+						var name = $(this).val();
+						socket.emit('banned',name);
+						$(this).attr('checked',false);
+					}					
+				});
+			});
+		});
+		
+		// Handle the message reception
+		socket.on('receiveMessage', function(data){
+			// Check the message content
+			if(data.message!=''){
+				$('.panel').show();
+				// If the sender is not in the chat list, create a new conversation
+				if(!(data.nameS in chatList)){
+					chatList[data.nameS]=data.nameS;
+					newConv(data.nameS,data.message);
+				}else{
+					$('#'+data.nameS+'').find('ul').append('<li style="color:grey"><p><strong>'+data.nameS+' : </strong>'+data.message+'</p></li>');
+					$('.convers').scrollTop($('.convers')[0].scrollHeight);
+				}
+			}
+		});
+		
+		// Handle the image reception
+		socket.on('receiveImage',function(data){
+			if(data.img!=''){
+				$('.panel').show();
+				// If the sender is not in the chat list, create a new conversation
+				if(!(data.nameS in chatList)){
+					chatList[data.nameS]=data.nameS;
+					var image='<div class="thumbnail"><img class="img-responsive" src="'+data.img+'"/></div>';
+					newConv(data.nameS,image);
+				}else{
+					$('#'+data.nameS+'').find('ul').append('<li style="color:grey"><strong>'+data.nameS+' : </strong><div class="thumbnail"><img class="img-responsive" src="'+data.img+'"/></div></li>');
+					$('.convers').scrollTop($('.convers')[0].scrollHeight);
+				}
+			}
+		});
+		
+		// Handle the 'isBanned' order - Ban the client
+		socket.on('isbanned',function(){		
+			$('.panel').remove();
+			$('.dropdown').remove();
+			$('.col-md-8').html('<div class="jumbotron"><h1>You are banned !</h1></div>');
+		});
+		
+		// Notify that someone has left
+		socket.on('hasLeft',function(name){
+			$('#offPopover').attr('data-content','<h3>'+name+' has left !</h3>');
+			$('#offPopover').popover('show');
+		});
+		
+		// Hide the leaving after a fixed delay
+		$('#offPopover').on('shown.bs.popover', function() {
+			setTimeout(function() {
+					$('#offPopover').popover('hide');
+			}, 1000);
+		});
+		
+		// Create a new conversation by clicking on a client in the online list
+		$('.clients').on('click','li',function(){
+			$('.panel').show();
+			var name=$(this).text();
+			console.log(name);
+			if(!(name in chatList)){
+				chatList[name]=name;
+				newConv(name,'');
+			}
+		});
+		
+		// Handle the click on the conversation tab
+		$('.nav-tabs').on('click', 'a', function(e){
+			e.preventDefault();
+			$(this).tab('show');
+		})
+		
+		// Close a conversation by clicking on the 'x'
+		.on('click', 'span', function () {
+			var anchor = $(this).siblings('a');
+			var nameDelete=anchor.text().replace(/\s+/g, '');
+			delete chatList[nameDelete];
+			$(anchor.attr('href')).remove();
+			$(this).parent().remove();
+			$('.nav-tabs li').children('a').first().click();
+			if(Object.size(chatList)==0){
+				$('.panel').hide();
+			}
+		});	
+	});
+
+	</script>
+</html>

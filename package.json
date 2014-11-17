@@ -1,0 +1,10 @@
+{
+	"name": "messenging-app",
+	"version": "0.1.0",
+	"dependencies":	{
+		"express": "~3.2.6",
+		"socket.io": "~1.2.0"
+	},
+	"author": "NicolasMoriceau <nicolas.moriceau@supelec.fr>",
+	"description": "Appli de messagerie instantanée réalisée avec NodeJS et SocketIO"
+}
